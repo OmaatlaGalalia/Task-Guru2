@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
 import { FiSearch, FiFilter, FiMapPin, FiDollarSign, FiClock } from 'react-icons/fi';
 
 const BrowseTasks = () => {
@@ -11,7 +10,7 @@ const BrowseTasks = () => {
 
   // Mock data - replace with API call later
   
-  const [tasks, setTasks] = useState([
+  const [tasks] = useState([
     {
       id: 1,
       title: 'Furniture Assembly',
@@ -142,7 +141,7 @@ const BrowseTasks = () => {
  
   const categories = ['All', 'Cleaning', 'Repairs', 'Assembly', 'Tutoring', 'Moving', 'Other'];
 
-  // Filter tasks based on seARCH
+  // Filter tasks based on search
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          task.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -267,13 +266,16 @@ const BrowseTasks = () => {
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <Link
-                    to={`/tasks/${task.id}`}
+                  <button
+                    type="button"
                     className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
                   >
                     View Details
-                  </Link>
-                  <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  >
                     Apply Now
                   </button>
                 </div>
@@ -298,13 +300,13 @@ const BrowseTasks = () => {
             <div>
               <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                 {[1, 2, 3, 4, 5].map((page) => (
-                  <a
+                  <button
                     key={page}
-                    href="#"
+                    type="button"
                     className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${page === 1 ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}
                   >
                     {page}
-                  </a>
+                  </button>
                 ))}
               </nav>
             </div>

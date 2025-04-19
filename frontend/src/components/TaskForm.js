@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 
 export default function TaskForm() {
-  // const navigate = useNavigate(); // Removed unused navigate
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { id } = useParams();
   const [formData, setFormData] = useState({
@@ -115,9 +115,10 @@ export default function TaskForm() {
         setErrors({ 
           submit: error.message || 'Failed to post task. Please try again.' 
         });
-      } finally {
-        setIsSubmitting(false);
+        return;
       }
+      navigate('/dashboard');
+      setIsSubmitting(false);
     } else {
       setErrors(validationErrors);
     }

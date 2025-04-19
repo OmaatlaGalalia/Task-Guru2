@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import logo from '../logo.png';
 
 export default function Navbar() {
   const { user, signOut } = useAuth();
@@ -42,6 +43,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           <Link to="/" className="flex items-center">
+            <img src={logo} alt="Task Guru Logo" className="h-8 w-8 mr-2" />
             <span className="text-2xl font-bold text-blue-600">TaskGuru</span>
           </Link>
 

@@ -14,7 +14,7 @@ build/
 .firebase/
 .firebaserc
 firebase-debug.log
-firebase.json
+#firebase.json
 firestore.indexes.json
 firestore.rules
 
