@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 
 export default function TaskForm() {
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Removed unused navigate
   const { user } = useAuth();
+  const { id } = useParams();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -17,6 +18,7 @@ export default function TaskForm() {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const categories = [
     'Home Cleaning',
@@ -26,6 +28,33 @@ export default function TaskForm() {
     'Tutoring',
     'Other'
   ];
+
+  useEffect(() => {
+    if (id) {
+      // Editing mode: fetch task data
+      setIsEditing(true);
+      const fetchTask = async () => {
+        try {
+          const docRef = doc(db, 'tasks', id);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setFormData({
+              title: data.title || '',
+              description: data.description || '',
+              category: data.category || '',
+              budget: data.budget || '',
+              location: data.location || '',
+              deadline: data.deadline ? data.deadline.split('T')[0] : ''
+            });
+          }
+        } catch (err) {
+          console.error('Error fetching task for edit:', err);
+        }
+      };
+      fetchTask();
+    }
+  }, [id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,36 +81,34 @@ export default function TaskForm() {
           throw new Error('Only clients can post tasks.');
         }
 
-        // Add task to Firestore
-        const taskData = {
-          title: formData.title.trim(),
-          description: formData.description.trim(),
-          category: formData.category,
-          budget: Number(formData.budget),
-          location: formData.location.trim(),
-          deadline: formData.deadline,
-          clientId: user.uid,
-          clientEmail: user.email,
-          clientName: user.firstName && user.lastName 
-            ? `${user.firstName} ${user.lastName}`
-            : user.email,
-          status: 'open',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        };
-
-        console.log('Submitting task data:', taskData); // Debug log
-
-        try {
-          const docRef = await addDoc(collection(db, 'tasks'), taskData);
-          console.log('Task posted with ID:', docRef.id);
-          navigate('/dashboard');
-        } catch (firestoreError) {
-          console.error('Firestore error:', firestoreError);
-          if (firestoreError.code === 'permission-denied') {
-            throw new Error('You do not have permission to post tasks. Please make sure you are logged in as a client.');
-          }
-          throw firestoreError;
+        if (isEditing && id) {
+          // Update existing task
+          const docRef = doc(db, 'tasks', id);
+          await updateDoc(docRef, {
+            title: formData.title.trim(),
+            description: formData.description.trim(),
+            category: formData.category,
+            budget: Number(formData.budget),
+            location: formData.location.trim(),
+            deadline: formData.deadline,
+            updatedAt: serverTimestamp()
+          });
+        } else {
+          // Add to Firestore
+          await addDoc(collection(db, 'tasks'), {
+            title: formData.title.trim(),
+            description: formData.description.trim(),
+            category: formData.category,
+            budget: Number(formData.budget),
+            location: formData.location.trim(),
+            deadline: formData.deadline,
+            clientId: user.uid,
+            clientEmail: user.email,
+            clientName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email,
+            status: 'open',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
         }
       } catch (error) {
         console.error('Error posting task:', error);
@@ -142,6 +169,7 @@ export default function TaskForm() {
             className={`mt-1 block w-full border ${errors.description ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
           />
           {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
+          {errors.firestore && <p className="text-red-500 text-sm mt-1">{errors.firestore}</p>}
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

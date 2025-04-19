@@ -43,22 +43,29 @@ export default function ClientDashboard() {
           // Fetch applications for each task
           const applicationsMap = {};
           for (const task of tasks) {
-            const applicationsQuery = query(
-              collection(db, 'applications'),
-              where('taskId', '==', task.id),
-              orderBy('createdAt', 'desc')
-            );
-            const applicationsSnapshot = await getDocs(applicationsQuery);
-            applicationsMap[task.id] = applicationsSnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data(),
-              createdAt: doc.data().createdAt?.toDate()
-            }));
+            try {
+              const applicationsQuery = query(
+                collection(db, 'applications'),
+                where('taskId', '==', task.id),
+                orderBy('createdAt', 'desc')
+              );
+              const applicationsSnapshot = await getDocs(applicationsQuery);
+              applicationsMap[task.id] = applicationsSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate()
+              }));
+            } catch (appErr) {
+              // If fetching applications fails (e.g., permissions), skip this task's applications
+              console.warn('Skipping applications for task', task.id, appErr);
+              applicationsMap[task.id] = [];
+            }
           }
           setApplications(applicationsMap);
           
           setLoading(false);
         }, (error) => {
+          // Only set error if the entire onSnapshot fails
           console.error('Error fetching tasks:', error);
           setError('Failed to load tasks. Please try again.');
           setLoading(false);
@@ -81,10 +88,7 @@ export default function ClientDashboard() {
     }
 
     try {
-      // Delete the task
-      await deleteDoc(doc(db, 'tasks', taskId));
-
-      // Delete all applications for this task
+      // Delete all applications for this task FIRST
       const applicationsQuery = query(
         collection(db, 'applications'),
         where('taskId', '==', taskId)
@@ -92,6 +96,17 @@ export default function ClientDashboard() {
       const applicationsSnapshot = await getDocs(applicationsQuery);
       const deletePromises = applicationsSnapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
+
+      // Then delete the task itself
+      await deleteDoc(doc(db, 'tasks', taskId));
+      // Optimistically remove the task and its applications from state
+      setPostedTasks(prev => prev.filter(task => task.id !== taskId));
+      setApplications(prev => {
+        const newApps = { ...prev };
+        delete newApps[taskId];
+        return newApps;
+      });
+      setError(null); // Clear error after successful delete
     } catch (err) {
       console.error('Error deleting task:', err);
       setError('Failed to delete task. Please try again.');
@@ -256,12 +271,20 @@ export default function ClientDashboard() {
                 <div className="mt-4 pt-4 border-t">
                   {task.status === 'open' && (
                     <div className="flex justify-between items-center">
-                      <button
-                        onClick={() => handleDeleteTask(task.id)}
-                        className="text-red-600 hover:text-red-700 text-sm font-medium"
-                      >
-                        Delete Task
-                      </button>
+                      <div className="flex gap-4">
+  <Link
+    to={`/edit-task/${task.id}`}
+    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+  >
+    Edit Task
+  </Link>
+  <button
+    onClick={() => handleDeleteTask(task.id)}
+    className="text-red-600 hover:text-red-700 text-sm font-medium"
+  >
+    Delete Task
+  </button>
+</div>
                       {applications[task.id]?.length > 0 && (
                         <span className="text-sm text-blue-600">
                           {applications[task.id].length} application(s)
