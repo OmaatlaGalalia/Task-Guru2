@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { db } from '../firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { FiSearch, FiFilter, FiMapPin, FiDollarSign, FiClock } from 'react-icons/fi';
 
 const BrowseTasks = () => {
@@ -8,135 +10,19 @@ const BrowseTasks = () => {
   const [priceRange, setPriceRange] = useState([0, 1000]);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Mock data - replace with API call later
-  
-  const [tasks] = useState([
-    {
-      id: 1,
-      title: 'Furniture Assembly',
-      description: 'Help assembling furniture from Game or HomeCorp (wardrobe and table)',
-      category: 'Assembly',
-      price: 400, 
-      location: 'Gaborone, Main Mall',
-      posted: '2 hours ago',
-      urgent: true,
-      images: ['furniture.jpg']
-    },
-    {
-      id: 2,
-      title: 'Math Tutoring',
-      description: 'Form 4 mathematics help for BGCSE, 2 hours weekly',
-      category: 'Tutoring',
-      price: 200, 
-      location: 'Gaborone, Block 8',
-      posted: '1 day ago',
-      urgent: false
-    },
-    {
-      id: 3,
-      title: 'Bathroom Plumbing Repair',
-      description: 'Fix leaking tap and blocked shower in Tlokweng house',
-      category: 'Plumbing',
-      price: 600, 
-      location: 'Tlokweng',
-      posted: '3 hours ago',
-      urgent: true,
-      images: ['bathroom.jpg']
-    },
-    {
-      id: 4,
-      title: 'House Deep Cleaning',
-      description: 'Full cleaning before landlord inspection (2-bedroom house)',
-      category: 'Cleaning',
-      price: 450, 
-      location: 'Francistown, Aerodrome',
-      posted: '1 day ago',
-      urgent: false
-    },
-    {
-      id: 5,
-      title: 'Moving Assistance',
-      description: 'Help carrying boxes from flat to bakkie in Mogoditshane',
-      category: 'Moving',
-      price: 300,  
-      location: 'Mogoditshane',
-      posted: '5 hours ago',
-      urgent: false,
-      images: ['moving.jpg']
-    },
-    {
-      id: 6,
-      title: 'Guitar Lessons',
-      description: 'Beginner lessons for traditional Setswana music',
-      category: 'Music',
-      price: 175,  
-      location: 'Gaborone, Broadhurst',
-      posted: '2 days ago',
-      urgent: false
-    },
-    {
-      id: 7,
-      title: 'Emergency Electrical Repair',
-      description: 'Power outlet not working in home office (need ASAP)',
-      category: 'Electrical',
-      price: 750, 
-      location: 'Gaborone, Phakalane',
-      posted: '1 hour ago',
-      urgent: true,
-      images: ['electrical.jpg']
-    },
-    {
-      id: 8,
-      title: 'Yard Cleanup',
-      description: 'Remove weeds and trim bushes in small yard',
-      category: 'Gardening',
-      price: 250, 
-      location: 'Maun',
-      posted: '3 days ago',
-      urgent: false
-    },
-    {
-      id: 9,
-      title: 'Computer Setup',
-      description: 'Help install Windows and transfer files from old laptop',
-      category: 'Tech',
-      price: 225,
-      location: 'Gaborone, Riverwalk',
-      posted: '1 day ago',
-      urgent: false
-    },
-    {
-      id: 10,
-      title: 'House Painting',
-      description: 'Paint living room (paint and brushes provided)',
-      category: 'Painting',
-      price: 375, 
-      location: 'Gaborone, BBS Mall Area',
-      posted: '4 hours ago',
-      urgent: false,
-      images: ['painting.jpg']
-    },
-    {
-      id: 11,
-      title: 'Pet Sitting',
-      description: 'Feed and walk my dog for 2 days while I travel',
-      category: 'Pets',
-      price: 125, 
-      location: 'Kasane',
-      posted: '2 days ago',
-      urgent: false
-    },
-    {
-      id: 12,
-      title: 'Setswana Language Tutor',
-      description: 'Practice conversational Setswana for foreigners',
-      category: 'Language',
-      price: 150, 
-      location: 'Gaborone, UB Campus',
-      posted: '1 week ago',
-      urgent: false
-    }
-  ]);
+  // Real-time tasks from Firestore
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setTasks(fetchedTasks);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
  
   const categories = ['All', 'Cleaning', 'Repairs', 'Assembly', 'Tutoring', 'Moving', 'Other'];
@@ -233,7 +119,11 @@ const BrowseTasks = () => {
 
       {/* Tasks Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredTasks.length > 0 ? (
+        {loading ? (
+          <div className="col-span-full text-center py-12">
+            <h3 className="text-lg font-medium text-gray-900">Loading tasks...</h3>
+          </div>
+        ) : filteredTasks.length > 0 ? (
           filteredTasks.map(task => (
             <div key={task.id} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
               {/* Task Header */}
