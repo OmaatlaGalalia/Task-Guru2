@@ -5,6 +5,40 @@ import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 
 export default function ClientDashboard() {
+  // ...existing code...
+
+  // Mark task as completed
+  const handleMarkCompleted = async (taskId) => {
+    if (!window.confirm('Mark this task as completed?')) return;
+    try {
+      const taskRef = doc(db, 'tasks', taskId);
+      await updateDoc(taskRef, {
+        status: 'completed',
+        updatedAt: serverTimestamp(),
+      });
+      setError(null);
+    } catch (err) {
+      console.error('Error marking task as completed:', err);
+      setError('Failed to mark task as completed. Please try again.');
+    }
+  };
+
+  // Cancel task
+  const handleCancelTask = async (taskId) => {
+    if (!window.confirm('Are you sure you want to cancel this task?')) return;
+    try {
+      const taskRef = doc(db, 'tasks', taskId);
+      await updateDoc(taskRef, {
+        status: 'cancelled',
+        updatedAt: serverTimestamp(),
+      });
+      setError(null);
+    } catch (err) {
+      console.error('Error cancelling task:', err);
+      setError('Failed to cancel task. Please try again.');
+    }
+  };
+
   const { user } = useAuth();
   const [userData, setUserData] = useState(null);
   const [postedTasks, setPostedTasks] = useState([]);
@@ -330,6 +364,31 @@ export default function ClientDashboard() {
                       <p className="text-sm text-gray-600">
                         <span className="font-medium">Email:</span> {task.taskerEmail}
                       </p>
+                      {/* Completion and Cancellation Actions */}
+                      {['assigned', 'in_progress'].includes(task.status) && (
+                        <div className="flex gap-4 mt-2">
+                          <button
+                            onClick={() => handleMarkCompleted(task.id)}
+                            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                            disabled={task.status === 'completed' || task.status === 'cancelled'}
+                          >
+                            Mark as Completed
+                          </button>
+                          <button
+                            onClick={() => handleCancelTask(task.id)}
+                            className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50"
+                            disabled={task.status === 'completed' || task.status === 'cancelled'}
+                          >
+                            Cancel Task
+                          </button>
+                        </div>
+                      )}
+                      {task.status === 'completed' && (
+                        <p className="mt-2 text-green-700 font-semibold">Task Completed</p>
+                      )}
+                      {task.status === 'cancelled' && (
+                        <p className="mt-2 text-red-700 font-semibold">Task Cancelled</p>
+                      )}
                     </div>
                   )}
                 </div>

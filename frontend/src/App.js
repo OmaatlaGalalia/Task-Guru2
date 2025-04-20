@@ -15,7 +15,7 @@ import BrowseTasks from './pages/BrowseTasks';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import CookiePolicy from './pages/CookiePolicy';
-import Footer from './components/Footer';
+
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './context/AuthContext';
 
@@ -62,7 +62,7 @@ function App() {
         {/* Redirect invalid paths to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <Footer />
+
     </Router>
   );
 }
