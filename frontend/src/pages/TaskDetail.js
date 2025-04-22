@@ -33,7 +33,7 @@ export default function TaskDetail() {
               {task.category}
             </span>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              Budget: BWP{task.budget}
+              Budget: BWP {task.budget}
             </span>
           </div>
         </div>

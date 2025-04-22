@@ -47,7 +47,8 @@ export default function Navbar() {
             <span className="text-2xl font-bold text-blue-600">TaskGuru</span>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* User/account dropdown or icon here */}
+          
           <div className="hidden md:flex items-center space-x-8">
             <Link to="/" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
               Home
@@ -92,25 +93,32 @@ export default function Navbar() {
                 </button>
 
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                    <Link
-                      to={userData?.role === 'admin' ? '/admin-dashboard' : '/dashboard'}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      Dashboard
-                    </Link>
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setShowUserMenu(false);
-                      }}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Log out
-                    </button>
-                  </div>
-                )}
+  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+    <Link
+      to={userData?.role === 'admin' ? '/admin-dashboard' : '/dashboard'}
+      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+      onClick={() => setShowUserMenu(false)}
+    >
+      Dashboard
+    </Link>
+    <Link
+      to="/profile"
+      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+      onClick={() => setShowUserMenu(false)}
+    >
+      Profile
+    </Link>
+    <button
+      onClick={() => {
+        handleLogout();
+        setShowUserMenu(false);
+      }}
+      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+    >
+      Log out
+    </button>
+  </div>
+)}
               </div>
             ) : (
               <>

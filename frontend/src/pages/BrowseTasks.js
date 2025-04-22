@@ -1,18 +1,68 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { FiSearch, FiFilter, FiMapPin, FiDollarSign, FiClock } from 'react-icons/fi';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const BrowseTasks = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [userRole, setUserRole] = useState(null);
+  const [appliedTasks, setAppliedTasks] = useState([]);
+  const [error, setError] = useState(null);
+
   // State for filters and search
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [priceRange, setPriceRange] = useState([0, 10000]);
   const [showFilters, setShowFilters] = useState(false);
 
   // Real-time tasks from Firestore
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Fetch user role and applied tasks
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUserData = async () => {
+      try {
+        // Get user role
+        const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', user.uid)));
+        if (!userDoc.empty) {
+          setUserRole(userDoc.docs[0].data().role);
+        } else {
+          console.warn('User document not found for uid:', user.uid);
+          // Set default role to viewer if no role is found
+          setUserRole('viewer');
+        }
+
+        try {
+          // Get user's applications in a separate try-catch block
+          const applicationsQuery = query(collection(db, 'applications'), where('taskerId', '==', user.uid));
+          const applicationsSnapshot = await getDocs(applicationsQuery);
+          const appliedTaskIds = applicationsSnapshot.docs.map(doc => doc.data().taskId);
+          setAppliedTasks(appliedTaskIds);
+        } catch (appErr) {
+          console.error('Error fetching applications:', appErr);
+          // Don't fail completely if only applications fetch fails
+          setAppliedTasks([]);
+        }
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+        if (err.code === 'permission-denied') {
+          // Handle permission error gracefully
+          setUserRole('viewer');
+          setError('Some features may be limited. Please ensure your account is properly set up.');
+        } else {
+          setError('Failed to load user data. Please try refreshing the page.');
+        }
+      }
+    };
+
+    fetchUserData();
+  }, [user]);
 
   useEffect(() => {
     const q = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'));
@@ -25,6 +75,49 @@ const BrowseTasks = () => {
   }, []);
 
  
+  const handleApply = async (task) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      // Create application document
+      const applicationData = {
+        taskId: task.id,
+        taskTitle: task.title,
+        taskerId: user.uid,
+        taskerName: user.displayName || 'Unknown Tasker',
+        clientId: task.clientId,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      await addDoc(collection(db, 'applications'), applicationData);
+
+      // Update local state
+      setAppliedTasks(prev => [...prev, task.id]);
+
+      // Show success message
+      alert('Application submitted successfully!');
+    } catch (err) {
+      console.error('Error applying for task:', err);
+      setError('Failed to submit application. Please try again.');
+    }
+  };
+
+  // Show error message if any
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   const categories = ['All', 'Cleaning', 'Repairs', 'Assembly', 'Tutoring', 'Moving', 'Other'];
 
   // Filter tasks based on search
@@ -32,7 +125,7 @@ const BrowseTasks = () => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          task.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || task.category === selectedCategory;
-    const matchesPrice = task.price >= priceRange[0] && task.price <= priceRange[1];
+    const matchesPrice = (task.budget ?? 0) >= priceRange[0] && (task.budget ?? 0) <= priceRange[1];
     
     return matchesSearch && matchesCategory && matchesPrice;
   });
@@ -148,7 +241,7 @@ const BrowseTasks = () => {
                     <FiMapPin className="mr-1" /> {task.location}
                   </span>
                   <span className="inline-flex items-center text-sm text-gray-500">
-                    <FiDollarSign className="mr-1" />BWP{task.price}
+                    <FiDollarSign className="mr-1" />BWP {task.budget}
                   </span>
                   <span className="inline-flex items-center text-sm text-gray-500">
                     <FiClock className="mr-1" /> {task.posted}
@@ -157,17 +250,23 @@ const BrowseTasks = () => {
 
                 <div className="flex justify-between items-center">
                   <button
-                    type="button"
+                    onClick={() => navigate(`/task/${task.id}`)}
                     className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
                   >
                     View Details
                   </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    Apply Now
-                  </button>
+                  {userRole === 'tasker' && !appliedTasks.includes(task.id) && task.status === 'open' && (
+                    <button
+                      onClick={() => handleApply(task)}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                      disabled={loading}
+                    >
+                      {loading ? 'Applying...' : 'Apply Now'}
+                    </button>
+                  )}
+                  {appliedTasks.includes(task.id) && (
+                    <span className="text-sm text-green-600 font-medium">Applied</span>
+                  )}
                 </div>
               </div>
             </div>

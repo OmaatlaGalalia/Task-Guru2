@@ -12,9 +12,13 @@ import TaskForm from './components/TaskForm';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import BrowseTasks from './pages/BrowseTasks';
+import Profile from './pages/Profile';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import CookiePolicy from './pages/CookiePolicy';
+import ChatPage from './pages/ChatPage';
+import ReviewPage from './pages/ReviewPage';
+import PaymentPage from './pages/PaymentPage';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './context/AuthContext';
@@ -47,10 +51,14 @@ function App() {
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/cookie-policy" element={<CookiePolicy />} />
+        <Route path="/chat/:taskId/:taskerId" element={<ChatPage />} />
+        <Route path="/review/:taskId/:taskerId" element={<ReviewPage />} />
+        <Route path="/pay/:taskId" element={<PaymentPage />} />
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardRouter />} />
+<Route path="/profile" element={<Profile />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           <Route path="/tasks" element={<BrowseTasks />} />
           <Route path="/tasks/:id" element={<TaskDetail />} />

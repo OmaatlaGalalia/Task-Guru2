@@ -77,7 +77,7 @@ export default function TaskerDashboard() {
       {/* Welcome Section */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <h1 className="text-2xl font-bold text-gray-800">
-          Welcome back, {userData?.firstName || 'Tasker'}!
+         Hello, {userData?.firstName || 'Tasker'}!
         </h1>
         <p className="text-gray-600 mt-2">
           Manage your tasks and track your earnings.
@@ -88,12 +88,12 @@ export default function TaskerDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-green-50 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-green-800 mb-2">Total Earnings</h3>
-          <p className="text-3xl font-bold text-green-600">${earnings.total}</p>
+          <p className="text-3xl font-bold text-green-600">BWP {earnings.total}</p>
           <p className="text-green-600 mt-2">Lifetime earnings</p>
         </div>
         <div className="bg-blue-50 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-blue-800 mb-2">Monthly Earnings</h3>
-          <p className="text-3xl font-bold text-blue-600">${earnings.thisMonth}</p>
+          <p className="text-3xl font-bold text-blue-600">BWP {earnings.thisMonth}</p>
           <p className="text-blue-600 mt-2">This month</p>
         </div>
         <div className="bg-purple-50 rounded-lg p-6">
@@ -118,7 +118,7 @@ export default function TaskerDashboard() {
                     <div>
                       <h3 className="font-medium text-gray-800">{task.title}</h3>
                       <p className="text-gray-600 text-sm mt-1">{task.description}</p>
-                      <p className="text-gray-500 text-sm mt-2">Payment: ${task.payment}</p>
+                      <p className="text-gray-500 text-sm mt-2">Payment: BWP {task.payment}</p>
                     </div>
                     <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                       Update Status

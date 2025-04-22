@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, collection, query, where, onSnapshot, orderBy, deleteDoc, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, orderBy, deleteDoc, updateDoc, serverTimestamp, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -43,8 +43,33 @@ export default function ClientDashboard() {
   const [userData, setUserData] = useState(null);
   const [postedTasks, setPostedTasks] = useState([]);
   const [applications, setApplications] = useState({});
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [profileImageError, setProfileImageError] = useState(false);
+
+  // Listen for new applications
+  useEffect(() => {
+    if (!user) return;
+
+    const applicationsQuery = query(
+      collection(db, 'applications'),
+      where('clientId', '==', user.uid),
+      where('status', '==', 'pending'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(applicationsQuery, (snapshot) => {
+      const newNotifications = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate()
+      }));
+      setNotifications(newNotifications);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -148,6 +173,60 @@ export default function ClientDashboard() {
   };
 
   const handleAcceptApplication = async (taskId, application) => {
+    if (!window.confirm('Accept this application?')) return;
+
+    try {
+      // Get tasker's full details
+      const taskerDoc = await getDoc(doc(db, 'users', application.taskerId));
+      if (!taskerDoc.exists()) {
+        throw new Error('Tasker not found');
+      }
+      const taskerData = taskerDoc.data();
+      console.log('Tasker data:', taskerData); // Debug log
+
+      // Update application status
+      const applicationRef = doc(db, 'applications', application.id);
+      await updateDoc(applicationRef, {
+        status: 'accepted',
+        updatedAt: serverTimestamp()
+      });
+
+      // Update task status and assign tasker
+      const taskRef = doc(db, 'tasks', taskId);
+      await updateDoc(taskRef, {
+        status: 'assigned',
+        taskerId: application.taskerId,
+        taskerName: taskerData.displayName || 'Unknown Tasker',
+        updatedAt: serverTimestamp()
+      });
+
+      // Reject other applications for this task
+      const otherApplicationsQuery = query(
+        collection(db, 'applications'),
+        where('taskId', '==', taskId),
+        where('status', '==', 'pending')
+      );
+      
+      const otherApplications = await getDocs(otherApplicationsQuery);
+      const batch = writeBatch(db);
+      
+      otherApplications.docs.forEach(doc => {
+        if (doc.id !== application.id) {
+          batch.update(doc.ref, { 
+            status: 'rejected',
+            updatedAt: serverTimestamp()
+          });
+        }
+      });
+      
+      await batch.commit();
+
+      setError(null);
+      alert('Tasker assigned successfully!');
+    } catch (err) {
+      console.error('Error accepting application:', err);
+      setError('Failed to accept application: ' + err.message);
+    }
     try {
       // Update task with tasker information
       const taskRef = doc(db, 'tasks', taskId);
@@ -226,9 +305,28 @@ export default function ClientDashboard() {
     <div className="container mx-auto px-4 py-8">
       {/* Welcome Section */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">
-          Welcome back, {userData?.firstName || 'Client'}!
-        </h1>
+        <div className="flex items-center gap-4 mb-2">
+  <img
+    src={profileImageError ? '/default-avatar.png' : (userData?.photoURL || '/default-avatar.png')}
+    alt="Profile"
+    className="w-16 h-16 rounded-full object-cover border"
+    style={{ marginRight: '1rem' }}
+    onError={(e) => {
+      console.log('Dashboard image error. URL:', userData?.photoURL);
+      setProfileImageError(true);
+      e.target.src = '/default-avatar.png';
+    }}
+  />
+  <h1 className="text-2xl font-bold text-gray-800">
+    Hello, {userData?.firstName || 'Client'}!
+  </h1>
+  <button
+    onClick={() => window.location.href = '/profile'}
+    className="ml-auto px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+  >
+    Edit Profile
+  </button>
+</div>
         <p className="text-gray-600 mt-2">
           Manage your tasks and find the perfect tasker for your needs.
         </p>
@@ -274,8 +372,35 @@ export default function ClientDashboard() {
 
         {postedTasks.length > 0 ? (
           <div className="space-y-4">
-            {postedTasks.map(task => (
-              <div key={task.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+            {postedTasks.map((task) => (
+              <div key={task.id} className="bg-white shadow rounded-lg p-6 mb-4">
+                {/* Show notifications for pending applications */}
+                {notifications.filter(n => n.taskId === task.id).length > 0 && (
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                    <h4 className="text-blue-800 font-medium mb-2">New Applications ({notifications.filter(n => n.taskId === task.id).length})</h4>
+                    {notifications
+                      .filter(n => n.taskId === task.id)
+                      .map(notification => (
+                        <div key={notification.id} className="flex items-center justify-between py-2 border-b border-blue-100 last:border-0">
+                          <div>
+                            <p className="text-sm text-blue-900">
+                              <span className="font-medium">{notification.taskerName}</span> has applied
+                            </p>
+                            <p className="text-xs text-blue-700">
+                              {notification.createdAt?.toLocaleString()}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleAcceptApplication(task.id, notification)}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Accept
+                          </button>
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-medium text-lg text-gray-800">{task.title}</h3>
@@ -320,40 +445,62 @@ export default function ClientDashboard() {
   </button>
 </div>
                       {applications[task.id]?.length > 0 && (
-                        <span className="text-sm text-blue-600">
-                          {applications[task.id].length} application(s)
-                        </span>
-                      )}
+  <span className="text-sm text-blue-600">
+    {applications[task.id].length} application(s)
+  </span>
+)}
                     </div>
                   )}
                   
                   {/* Show applications if task is open */}
-                  {task.status === 'open' && applications[task.id]?.length > 0 && (
-                    <div className="mt-4 space-y-4">
-                      <h4 className="text-sm font-medium text-gray-700">Applications:</h4>
-                      {applications[task.id].map(application => (
-                        <div key={application.id} className="bg-gray-50 p-4 rounded-lg">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium text-gray-800">{application.taskerName}</p>
-                              <p className="text-sm text-gray-600">{application.taskerEmail}</p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                Applied: {application.createdAt?.toLocaleDateString()}
-                              </p>
-                            </div>
-                            {application.status === 'pending' && (
-                              <button
-                                onClick={() => handleAcceptApplication(task.id, application)}
-                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-                              >
-                                Accept
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {task.status === 'open' && (
+  <div className="mt-4 space-y-4">
+    {applications[task.id]?.length > 0 ? (
+      <>
+        <h4 className="text-sm font-medium text-gray-700">Applications:</h4>
+        {applications[task.id].map(application => (
+          <div key={application.id} className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-medium text-gray-800">{application.taskerName}</p>
+                <p className="text-sm text-gray-600">{application.taskerEmail}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Applied: {application.createdAt?.toLocaleDateString()}
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    // Assign the tasker to the task
+                    const taskRef = doc(db, 'tasks', task.id);
+                    await updateDoc(taskRef, {
+                      status: 'assigned',
+                      taskerId: application.taskerId,
+                      taskerName: application.taskerName,
+                      taskerEmail: application.taskerEmail,
+                      updatedAt: serverTimestamp(),
+                    });
+                    // Optionally update the application status
+                    const appRef = doc(db, 'applications', application.id);
+                    await updateDoc(appRef, { status: 'accepted' });
+                  } catch (err) {
+                    alert('Failed to assign tasker: ' + err.message);
+                  }
+                }}
+                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+              >
+                Assign Tasker
+              </button>
+            </div>
+          </div>
+        ))}
+        <p className="text-xs text-gray-500 mt-2">Select an application to assign a tasker.</p>
+      </>
+    ) : (
+      <p className="text-xs text-gray-500">No applications yet. Share your task or check back soon!</p>
+    )}
+  </div>
+)}
                   
                   {/* Show assigned tasker if task is assigned */}
                   {task.taskerId && (
@@ -381,6 +528,32 @@ export default function ClientDashboard() {
                           >
                             Cancel Task
                           </button>
+                          <Link
+                            to={`/chat/${task.id}/${task.taskerId}`}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                          >
+                            Message Tasker
+                          </Link>
+                        </div>
+                      )}
+                      {/* Leave Review and Payment Buttons for completed tasks */}
+                      {task.status === 'completed' && (
+                        <div className="mt-2 flex flex-col gap-2">
+                          <p className="text-green-700 font-semibold">Task Completed</p>
+                          {task.paymentStatus !== 'paid' && (
+                            <Link
+                              to={`/pay/${task.id}`}
+                              className="px-3 py-1 bg-blue-700 text-white text-sm rounded hover:bg-blue-800 w-max"
+                            >
+                              Pay Now
+                            </Link>
+                          )}
+                          <Link
+                            to={`/review/${task.id}/${task.taskerId}`}
+                            className="px-3 py-1 bg-yellow-500 text-white text-sm rounded hover:bg-yellow-600 w-max"
+                          >
+                            Leave Review
+                          </Link>
                         </div>
                       )}
                       {task.status === 'completed' && (
