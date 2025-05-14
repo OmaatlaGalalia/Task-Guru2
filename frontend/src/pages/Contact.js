@@ -1,7 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import emailjs from '@emailjs/browser';
 
 export default function Contact() {
+  const form = useRef();
+  
+  // Initialize EmailJS
+  useEffect(() => {
+    emailjs.init('1_NmTlATFb4Cf9M7G');
+  }, []);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -10,12 +17,22 @@ export default function Contact() {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // Map the form field names to the state variable names
+    const fieldNameMap = {
+      'from_name': 'name',
+      'reply_to': 'email'
+    };
+    
+    // Use the mapped name if it exists, otherwise use the original name
+    const stateName = fieldNameMap[name] || name;
+    
     setFormData({
       ...formData,
-      [name]: value
+      [stateName]: value
     });
   };
 
@@ -33,9 +50,32 @@ export default function Contact() {
     if (!formData.message.trim()) validationErrors.message = 'Message is required';
     
     if (Object.keys(validationErrors).length === 0) {
-      console.log('Form submitted:', formData);
-      setIsSubmitted(true);
-      // API call would go here
+      setIsLoading(true);
+      
+      // Prepare form data for EmailJS
+      const templateParams = {
+        from_name: formData.name,
+        reply_to: formData.email,
+        subject: formData.subject,
+        message: formData.message
+      };
+      
+      // Send email using EmailJS
+      emailjs.send(
+        'service_8nw680j', // EmailJS service ID
+        'template_3wu25lt', // EmailJS template ID
+        templateParams
+      )
+        .then((result) => {
+          console.log('Email sent successfully:', result.text);
+          setIsSubmitted(true);
+          setIsLoading(false);
+        })
+        .catch((error) => {
+          console.error('Failed to send email:', error);
+          alert(`Failed to send your message: ${error.text || 'Unknown error'}`);
+          setIsLoading(false);
+        });
     } else {
       setErrors(validationErrors);
     }
@@ -95,7 +135,7 @@ export default function Contact() {
           {/* Contact Form */}
           <div className="bg-white p-6 sm:p-8 rounded-xl shadow-md">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a message</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form ref={form} onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                   Full Name
@@ -103,7 +143,7 @@ export default function Contact() {
                 <input
                   type="text"
                   id="name"
-                  name="name"
+                  name="from_name"
                   value={formData.name}
                   onChange={handleChange}
                   className={`mt-1 block w-full border ${errors.name ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
@@ -118,7 +158,7 @@ export default function Contact() {
                 <input
                   type="email"
                   id="email"
-                  name="email"
+                  name="reply_to"
                   value={formData.email}
                   onChange={handleChange}
                   className={`mt-1 block w-full border ${errors.email ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
@@ -159,9 +199,10 @@ export default function Contact() {
               <div>
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
                 >
-                  Send Message
+                  {isLoading ? 'Sending...' : 'Send Message'}
                 </button>
               </div>
             </form>

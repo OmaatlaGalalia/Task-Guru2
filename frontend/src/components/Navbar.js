@@ -37,6 +37,13 @@ export default function Navbar() {
     return user?.email[0].toUpperCase() || '?';
   };
 
+  const getProfileImage = () => {
+    if (userData?.photoURL) {
+      return userData.photoURL;
+    }
+    return '/images/default-avatar.svg';
+  };
+
   return (
     <nav className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -61,6 +68,9 @@ export default function Navbar() {
                 <Link to="/browse" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
                   Browse Tasks
                 </Link>
+                <Link to="/messages" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
+                  Messages
+                </Link>
               </>
             )}
             <Link to="/about" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
@@ -79,9 +89,18 @@ export default function Navbar() {
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-blue-600 font-medium rounded-lg transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                    {getInitial()}
-                  </div>
+                  {userData?.photoURL ? (
+                    <img 
+                      src={getProfileImage()} 
+                      alt="Profile" 
+                      className="w-8 h-8 rounded-full object-cover"
+                      onError={(e) => { e.target.src = '/images/default-avatar.svg'; }} 
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                      {getInitial()}
+                    </div>
+                  )}
                   <svg
                     className={`w-4 h-4 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
                     fill="none"
