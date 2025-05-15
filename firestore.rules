@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global admin access rule - admins can do anything
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isTasker() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tasker';
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // USERS: Allow users to read any user, update their own profile, and admins to manage all users
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // TASKS: Allow clients to create, read, update, delete their own tasks
+    // Allow taskers to update their assigned tasks (e.g., status updates)
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.clientId;
+      allow update: if isSignedIn() && (request.auth.uid == resource.data.clientId || request.auth.uid == resource.data.taskerId);
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.clientId;
+    }
+
+    // APPLICATIONS: Allow taskers to apply, clients to view applications for their tasks
+    match /applications/{applicationId} {
+      allow create: if isSignedIn() && isTasker() && request.auth.uid == request.resource.data.taskerId;
+      allow read: if isSignedIn() && (
+        resource.data.taskerId == request.auth.uid || 
+        get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.clientId == request.auth.uid
+      );
+      allow update: if isSignedIn() && 
+        (resource.data.taskerId == request.auth.uid ||
+         get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.clientId == request.auth.uid);
+    }
+
+    // MINIMAL CHAT RULES: Only require authentication
+    match /chats/{chatId} {
+      allow read, write: if isSignedIn();
+      
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn();
+      }
+    // NOTIFICATIONS: Allow authenticated users to create notifications
+    match /notifications/{notificationId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn(); // Optional: allow users to read notifications
+    }
+  }
+} }

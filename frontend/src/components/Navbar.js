@@ -60,11 +60,15 @@ export default function Navbar() {
             <Link to="/" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
               Home
             </Link>
-            {user && (
+            {user && userData?.role !== 'admin' && (
               <>
                 <Link to="/post-task" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
                   Post a Task
                 </Link>
+              </>
+            )}
+            {user && (
+              <>
                 <Link to="/browse" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
                   Browse Tasks
                 </Link>
@@ -76,9 +80,11 @@ export default function Navbar() {
             <Link to="/about" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
               About
             </Link>
-            <Link to="/contact" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
-              Contact
-            </Link>
+            {userData?.role !== 'admin' && (
+              <Link to="/contact" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">
+                Contact
+              </Link>
+            )}
           </div>
 
           {/* Auth Section */}

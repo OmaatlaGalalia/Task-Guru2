@@ -16,7 +16,7 @@ import Profile from './pages/Profile';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import CookiePolicy from './pages/CookiePolicy';
-import ChatPage from './pages/ChatPage';
+import MessagesPage from './pages/MessagesPage';
 import ReviewPage from './pages/ReviewPage';
 import PaymentPage from './pages/PaymentPage';
 
@@ -51,7 +51,10 @@ function App() {
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/cookie-policy" element={<CookiePolicy />} />
-        <Route path="/chat/:taskId/:taskerId" element={<ChatPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/messages" element={<MessagesPage />} />
+          <Route path="/messages/:chatId" element={<MessagesPage />} />
+        </Route>
         <Route path="/review/:taskId/:taskerId" element={<ReviewPage />} />
         <Route path="/pay/:taskId" element={<PaymentPage />} />
 

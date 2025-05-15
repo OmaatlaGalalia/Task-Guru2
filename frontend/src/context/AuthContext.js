@@ -23,10 +23,20 @@ export function AuthProvider({ children }) {
                     // Get additional user data from Firestore
                     const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                     if (userDoc.exists()) {
-                        setUser({
-                            ...currentUser,
-                            ...userDoc.data()
-                        });
+                        const userData = userDoc.data();
+                        
+                        // Check if the user has been deleted by admin
+                        if (userData.isDeleted) {
+                            // Sign out deleted users automatically
+                            await firebaseSignOut(auth);
+                            setUser(null);
+                            alert('Your account has been deactivated. Please contact support for assistance.');
+                        } else {
+                            setUser({
+                                ...currentUser,
+                                ...userData
+                            });
+                        }
                     } else {
                         setUser(currentUser);
                     }

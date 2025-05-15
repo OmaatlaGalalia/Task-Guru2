@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, orderBy, addDoc, where, getDocs, serverTimestamp } from 'firebase/firestore';
-import { FiSearch, FiFilter, FiMapPin, FiDollarSign, FiClock } from 'react-icons/fi';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy } from 'firebase/firestore';
+import { FiSearch, FiFilter, FiMapPin, FiClock } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { HiCreditCard } from 'react-icons/hi';
 
 const BrowseTasks = () => {
   const { user } = useAuth();
@@ -22,7 +23,87 @@ const BrowseTasks = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user role and applied tasks
+  // Find or create a chat with the poster and navigate to /messages/:chatId
+  const getChatKey = (uid1, uid2) => [uid1, uid2].sort().join('_');
+  const handleMessagePoster = async (posterUid) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      // Create a unique key for this chat combination
+      const chatKey = getChatKey(user.uid, posterUid);
+      
+      // Check if a chat already exists between these users
+      const chatQ = query(collection(db, 'chats'), where('chatKey', '==', chatKey));
+      const chatSnap = await getDocs(chatQ);
+      
+      let chatId;
+      
+      if (!chatSnap.empty) {
+        // Chat exists, just navigate to it
+        chatId = chatSnap.docs[0].id;
+      } else {
+        // Need to create a new chat
+        // 1. Fetch current user info
+        const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', user.uid)));
+        const currentUser = userDoc.empty ? { displayName: user.email } : userDoc.docs[0].data();
+        
+        // 2. Fetch poster user info
+        const posterDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', posterUid)));
+        const posterUser = posterDoc.empty ? { displayName: posterUid } : posterDoc.docs[0].data();
+        
+        // 3. Create detailed membersInfo for better display
+        const membersInfo = [
+          {
+            uid: user.uid,
+            displayName: currentUser.firstName 
+              ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim() 
+              : currentUser.displayName || user.email,
+            photoURL: currentUser.photoURL || '',
+            email: currentUser.email || user.email,
+            firstName: currentUser.firstName || '',
+            lastName: currentUser.lastName || ''
+          },
+          {
+            uid: posterUid,
+            displayName: posterUser.firstName 
+              ? `${posterUser.firstName} ${posterUser.lastName || ''}`.trim() 
+              : posterUser.displayName || posterUser.email,
+            photoURL: posterUser.photoURL || '',
+            email: posterUser.email || '',
+            firstName: posterUser.firstName || '',
+            lastName: posterUser.lastName || ''
+          }
+        ];
+        
+        // 4. Create the chat document with all required fields
+        const chatDoc = await addDoc(collection(db, 'chats'), {
+          members: [user.uid, posterUid].sort(),
+          chatKey,
+          membersInfo,
+          lastMessage: {
+            text: '',
+            timestamp: serverTimestamp()
+          },
+          createdAt: serverTimestamp(),
+        });
+        
+        chatId = chatDoc.id;
+      }
+      
+      // Navigate to the chat page
+      navigate(`/messages/${chatId}`);
+    } catch (error) {
+      console.error('Error creating or accessing chat:', error);
+      alert('Failed to open chat. Please try again.');
+    }
+  };
+
+
+
+// Fetch user role and applied tasks
   useEffect(() => {
     if (!user) return;
 
@@ -241,7 +322,7 @@ const BrowseTasks = () => {
                     <FiMapPin className="mr-1" /> {task.location}
                   </span>
                   <span className="inline-flex items-center text-sm text-gray-500">
-                    <FiDollarSign className="mr-1" />BWP {task.budget}
+                    <HiCreditCard className="mr-1" />BWP {task.budget}
                   </span>
                   <span className="inline-flex items-center text-sm text-gray-500">
                     <FiClock className="mr-1" /> {task.posted}
@@ -250,11 +331,19 @@ const BrowseTasks = () => {
 
                 <div className="flex justify-between items-center">
                   <button
-                    onClick={() => navigate(`/task/${task.id}`)}
+                    onClick={() => navigate(`/tasks/${task.id}`)}
                     className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
                   >
                     View Details
                   </button>
+                  {user && user.uid !== task.clientId && (
+                    <button
+                      onClick={() => handleMessagePoster(task.clientId)}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 ml-2"
+                    >
+                      Message Poster
+                    </button>
+                  )}
                   {userRole === 'tasker' && !appliedTasks.includes(task.id) && task.status === 'open' && (
                     <button
                       onClick={() => handleApply(task)}

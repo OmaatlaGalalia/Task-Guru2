@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isTasker() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tasker';
+    }
+
+    // USERS: Allow users to read any user and update their own profile
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // TASKS: Allow clients to create, read, update, delete their own tasks
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.clientId;
+      allow update, delete: if isSignedIn() && request.auth.uid == resource.data.clientId;
+    }
+
+    // APPLICATIONS: Allow taskers to apply, clients to view applications for their tasks
+    match /applications/{applicationId} {
+      allow create: if isSignedIn() && isTasker() && request.auth.uid == request.resource.data.taskerId;
+      allow read: if isSignedIn() && (
+        resource.data.taskerId == request.auth.uid || 
+        get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.clientId == request.auth.uid
+      );
+      allow update: if isSignedIn() && 
+        (resource.data.taskerId == request.auth.uid ||
+         get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.clientId == request.auth.uid);
+    }
+
+    // CHATS rules: Allow any signed-in user to create a chat if they include themselves in the members array
+    match /chats/{chatId} {
+      // Allow read/update/delete if the user is a member (for existing chats)
+      allow read, update, delete: if isSignedIn() && request.auth.uid in resource.data.members;
+      // Allow create if the user is in the new chat's members array
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.members;
+
+      // MESSAGES subcollection: Only allow chat members to read/write
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn() && 
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
+      }
+    }
+  }
+}

@@ -39,7 +39,7 @@ export default function BidForm() {
       <h2 className="text-xl font-bold mb-4">Submit Your Bid</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Bid Amount ($)</label>
+          <label className="block text-sm font-medium text-gray-700">Bid Amount (BWP)</label>
           <input
             type="number"
             name="amount"
