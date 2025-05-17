@@ -33,6 +33,17 @@ service cloud.firestore {
       allow delete: if isSignedIn() && request.auth.uid == resource.data.clientId;
     }
 
+    // REVIEWS: Allow clients to create reviews for taskers
+    // Allow anyone to read reviews
+    match /reviews/{reviewId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() 
+        && request.auth.uid == request.resource.data.clientId;
+      allow update, delete: if false;
+      allow update: if isSignedIn() && (request.auth.uid == resource.data.clientId || request.auth.uid == resource.data.taskerId);
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.clientId;
+    }
+
     // APPLICATIONS: Allow taskers to apply, clients to view applications for their tasks
     match /applications/{applicationId} {
       allow create: if isSignedIn() && isTasker() && request.auth.uid == request.resource.data.taskerId;

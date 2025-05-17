@@ -291,9 +291,93 @@ export default function Profile() {
             name="bio"
             value={profile.bio || ''}
             onChange={handleChange}
-            className="w-full border rounded px-3 py-2"
+            className="w-full border rounded px-3 py-2 h-24"
+            placeholder="Tell us about yourself..."
           />
         </div>
+
+        {profile.role === 'tasker' && (
+          <div className="space-y-4 border-t pt-4 mt-4">
+            <h3 className="text-lg font-bold">Professional Information</h3>
+            
+            <div>
+              <label className="block font-medium">Education</label>
+              <textarea
+                name="education"
+                value={profile.education || ''}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2 h-20"
+                placeholder="List your educational background (e.g., Bachelor's in Computer Science, Technical Certifications)"
+              />
+            </div>
+
+            <div>
+              <label className="block font-medium">Qualifications & Certifications</label>
+              <textarea
+                name="qualifications"
+                value={profile.qualifications || ''}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2 h-20"
+                placeholder="List relevant qualifications and certifications (e.g., Plumbing License, Electrician Certificate)"
+              />
+            </div>
+
+            <div>
+              <label className="block font-medium">Skills</label>
+              <textarea
+                name="skills"
+                value={profile.skills || ''}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2 h-20"
+                placeholder="List your key skills (e.g., Plumbing, Electrical Work, Carpentry)"
+              />
+            </div>
+
+            <div>
+              <label className="block font-medium">Work Experience</label>
+              <textarea
+                name="experience"
+                value={profile.experience || ''}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2 h-20"
+                placeholder="Describe your relevant work experience"
+              />
+            </div>
+
+            <div>
+              <label className="block font-medium">Languages</label>
+              <textarea
+                name="languages"
+                value={profile.languages || ''}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+                placeholder="List languages you speak (e.g., English, Setswana)"
+              />
+            </div>
+
+            <div>
+              <label className="block font-medium">Availability</label>
+              <textarea
+                name="availability"
+                value={profile.availability || ''}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+                placeholder="Describe your general availability (e.g., Weekdays 9-5, Weekends only)"
+              />
+            </div>
+
+            <div>
+              <label className="block font-medium">Service Areas</label>
+              <textarea
+                name="serviceAreas"
+                value={profile.serviceAreas || ''}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-2"
+                placeholder="List areas where you provide services (e.g., Gaborone, Francistown)"
+              />
+            </div>
+          </div>
+        )}
         
         <div className="border-t pt-4 mt-4">
           <div className="flex justify-between items-center mb-4">

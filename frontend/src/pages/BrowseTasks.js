@@ -163,12 +163,21 @@ const BrowseTasks = () => {
     }
 
     try {
+      // Get user's details from Firestore
+      const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', user.uid)));
+      const userData = userDoc.docs[0].data();
+      
+      // Create tasker name from first and last name
+      const taskerName = userData.firstName && userData.lastName
+        ? `${userData.firstName} ${userData.lastName}`
+        : userData.firstName || user.email;
+
       // Create application document
       const applicationData = {
         taskId: task.id,
         taskTitle: task.title,
         taskerId: user.uid,
-        taskerName: user.displayName || 'Unknown Tasker',
+        taskerName: taskerName,
         clientId: task.clientId,
         status: 'pending',
         createdAt: serverTimestamp(),

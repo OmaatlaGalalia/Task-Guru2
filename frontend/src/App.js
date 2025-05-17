@@ -7,6 +7,7 @@ import Register from './pages/Register';
 import TaskDetail from './pages/TaskDetail';
 import ClientDashboard from './pages/ClientDashboard';
 import TaskerDashboard from './pages/TaskerDashboard';
+import TaskerProfile from './components/TaskerProfile';
 import AdminDashboard from './pages/AdminDashboard';
 import TaskForm from './components/TaskForm';
 import About from './pages/About';
@@ -61,8 +62,10 @@ function App() {
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardRouter />} />
-<Route path="/profile" element={<Profile />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/tasker/:taskerId" element={<TaskerProfile />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/tasker-dashboard" element={<ProtectedRoute><TaskerDashboard /></ProtectedRoute>} />
           <Route path="/tasks" element={<BrowseTasks />} />
           <Route path="/tasks/:id" element={<TaskDetail />} />
           <Route path="/post-task" element={<TaskForm />} />

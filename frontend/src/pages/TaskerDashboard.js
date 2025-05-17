@@ -11,27 +11,12 @@ export default function TaskerDashboard() {
   const [earnings, setEarnings] = useState({ total: 0, thisMonth: 0 });
   const [loading, setLoading] = useState(true);
   const [unreadMessages, setUnreadMessages] = useState([]);
-  const [acceptedApplications, setAcceptedApplications] = useState([]);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   
-  // Function to mark an application as seen
-  const markApplicationSeen = async (applicationId) => {
-    try {
-      const applicationRef = doc(db, 'applications', applicationId);
-      await updateDoc(applicationRef, {
-        notificationSeen: true
-      });
-      console.log('Application marked as seen:', applicationId);
-      
-      // Update the local state to remove this notification
-      setAcceptedApplications(prev => prev.filter(app => app.id !== applicationId));
-    } catch (error) {
-      console.error('Error marking application as seen:', error);
-    }
-  };
+
   
   // Function to handle task status update and send notification to client
   const handleUpdateTaskStatus = async (newStatus) => {
@@ -134,145 +119,37 @@ export default function TaskerDashboard() {
           total: totalEarnings,
           thisMonth: monthlyEarnings
         });
+
+        // Set up real-time listener for unread messages
+        const unsubscribeMessages = onSnapshot(
+          query(
+            collection(db, 'messages'),
+            where('recipientId', '==', user.uid),
+            where('read', '==', false),
+            orderBy('createdAt', 'desc')
+          ),
+          (snapshot) => {
+            const messages = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setUnreadMessages(messages);
+          }
+        );
+
+        setLoading(false);
+
+        // Cleanup listeners
+        return () => {
+          unsubscribeMessages();
+        };
       } catch (error) {
         console.error('Error fetching data:', error);
-      } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-    
-    // Set up listeners for real-time notifications
-    if (user) {
-      // Listen for chats with unread messages
-      const chatsQuery = query(
-        collection(db, 'chats'),
-        where('participants', 'array-contains', user.uid),
-        orderBy('updatedAt', 'desc')
-      );
-      
-      const unsubscribeMessages = onSnapshot(chatsQuery, async (snapshot) => {
-        // Process chats to get unread message information
-        const unreadMessagesData = await Promise.all(snapshot.docs.map(async chatDoc => {
-          const chatData = chatDoc.data();
-          const chatId = chatDoc.id;
-          
-          // Skip chats with no unread messages
-          if (!chatData.unreadCount || chatData.unreadCount <= 0) {
-            return null;
-          }
-          
-          // Get the other user's information
-          const otherUserId = chatData.participants.find(id => id !== user.uid);
-          let senderName = 'Someone';
-          
-          if (otherUserId) {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', otherUserId));
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                if (userData.firstName && userData.lastName) {
-                  senderName = `${userData.firstName} ${userData.lastName}`;
-                } else if (userData.displayName) {
-                  senderName = userData.displayName;
-                } else if (userData.email) {
-                  senderName = userData.email;
-                }
-              }
-            } catch (error) {
-              console.error('Error fetching sender details:', error);
-            }
-          }
-          
-          // Get the last message text
-          const lastMessage = chatData.lastMessage || {};
-          
-          return {
-            id: chatId,
-            type: 'message',
-            senderId: otherUserId,
-            senderName,
-            text: lastMessage.text || 'New message',
-            unreadCount: chatData.unreadCount,
-            createdAt: chatData.updatedAt?.toDate() || new Date(),
-            taskId: chatData.taskId // Include task ID if available
-          };
-        }));
-        
-        // Filter out null values (chats with no unread messages)
-        const filteredMessages = unreadMessagesData.filter(message => message !== null);
-        
-        setUnreadMessages(filteredMessages);
-        console.log('Tasker unread messages:', filteredMessages);
-      });
-      
-      // Listen for accepted applications
-      const applicationsQuery = query(
-        collection(db, 'applications'),
-        where('taskerId', '==', user.uid),
-        where('status', '==', 'accepted'),
-        where('notificationSeen', '==', false),
-        orderBy('updatedAt', 'desc')
-      );
-      
-      const unsubscribeApplications = onSnapshot(applicationsQuery, async (snapshot) => {
-        // Process applications to get details
-        const acceptedAppsData = await Promise.all(snapshot.docs.map(async doc => {
-          const applicationData = doc.data();
-          let clientName = applicationData.clientName;
-          let taskTitle = applicationData.taskTitle;
-          
-          // If client name is missing, try to fetch it
-          if (!clientName && applicationData.clientId) {
-            try {
-              const clientDoc = await getDoc(doc(db, 'users', applicationData.clientId));
-              if (clientDoc.exists()) {
-                const clientData = clientDoc.data();
-                if (clientData.firstName && clientData.lastName) {
-                  clientName = `${clientData.firstName} ${clientData.lastName}`;
-                } else if (clientData.displayName) {
-                  clientName = clientData.displayName;
-                } else if (clientData.email) {
-                  clientName = clientData.email;
-                }
-              }
-            } catch (error) {
-              console.error('Error fetching client details:', error);
-            }
-          }
-          
-          // If task title is missing, try to fetch it
-          if (!taskTitle && applicationData.taskId) {
-            try {
-              const taskDoc = await getDoc(doc(db, 'tasks', applicationData.taskId));
-              if (taskDoc.exists()) {
-                taskTitle = taskDoc.data().title;
-              }
-            } catch (error) {
-              console.error('Error fetching task details:', error);
-            }
-          }
-          
-          return {
-            id: doc.id,
-            type: 'application',
-            ...applicationData,
-            clientName: clientName || 'A client',
-            taskTitle: taskTitle || 'A task',
-            updatedAt: applicationData.updatedAt?.toDate() || new Date()
-          };
-        }));
-        
-        setAcceptedApplications(acceptedAppsData);
-        console.log('Accepted applications:', acceptedAppsData);
-      });
-      
-      return () => {
-        unsubscribeMessages();
-        unsubscribeApplications();
-      };
-    }
   }, [user]);
 
   if (loading) {
@@ -348,67 +225,6 @@ export default function TaskerDashboard() {
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Notifications</h2>
         <div className="space-y-3">
-          {/* Accepted Applications notifications */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <h3 className="text-blue-800 font-medium mb-2 flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Application Updates {acceptedApplications.length > 0 && (
-                <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
-                  {acceptedApplications.length} new
-                </span>
-              )}
-            </h3>
-            {acceptedApplications.length > 0 ? (
-              <>
-                <ul className="space-y-3">
-                  {acceptedApplications.slice(0, 3).map(application => (
-                    <li key={application.id} className="bg-white rounded-lg shadow-sm p-3 border-l-4 border-green-500 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="font-medium text-green-800">{application.clientName}</span>
-                        <span className="text-xs text-gray-500">{application.updatedAt?.toLocaleString()}</span>
-                      </div>
-                      <p className="text-sm text-gray-700 mb-2">
-                        Accepted your application for <span className="font-medium">"{application.taskTitle || 'a task'}"</span>
-                      </p>
-                      <div className="flex justify-end">
-                        <Link
-                          to={`/task/${application.taskId}`}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center mr-3"
-                          onClick={() => markApplicationSeen(application.id)}
-                        >
-                          View Task
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                {acceptedApplications.length > 3 && (
-                  <div className="mt-3 text-center">
-                    <Link to="/applications" className="text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center">
-                      View all {acceptedApplications.length} updates
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-                    </Link>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-gray-500">No new application updates.</p>
-                <Link to="/applications" className="text-sm text-blue-600 hover:text-blue-800 font-medium mt-2 inline-block">
-                  View all applications
-                </Link>
-              </div>
-            )}
-          </div>
-          
           {/* Message notifications */}
           <div className="p-3 bg-green-50 border border-green-200 rounded-md">
             <h3 className="text-green-800 font-medium mb-2 flex items-center">

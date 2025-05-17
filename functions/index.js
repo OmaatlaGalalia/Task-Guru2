@@ -1,7 +1,14 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const stripe = require('stripe')(functions.config().stripe.secret);
+const notifications = require('./src/notifications');
+
 admin.initializeApp();
+
+// Export notification functions
+exports.sendNotification = notifications.sendNotification;
+exports.sendBulkNotifications = notifications.sendBulkNotifications;
+exports.onNewMessage = notifications.onNewMessage;
 
 // Cloud Function to create a Stripe PaymentIntent
 exports.createPaymentIntent = functions.https.onCall(async (data, context) => {

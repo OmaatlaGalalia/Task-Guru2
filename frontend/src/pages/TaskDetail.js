@@ -279,7 +279,15 @@ export default function TaskDetail() {
                   <div key={application.id} className="bg-white p-4 rounded-lg shadow border">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">{application.taskerName}</h4>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="text-sm font-medium text-gray-900">{application.taskerName}</h4>
+                          <button
+                            onClick={() => navigate(`/tasker/${application.taskerId}`)}
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            View Profile
+                          </button>
+                        </div>
                         <p className="text-sm text-gray-500">Applied: {new Date(application.createdAt.toDate()).toLocaleDateString()}</p>
                       </div>
                       <div className="flex gap-2">

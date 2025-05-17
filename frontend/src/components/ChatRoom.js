@@ -3,9 +3,12 @@ import { FaImage } from 'react-icons/fa';
 import { collection, query, orderBy, addDoc, serverTimestamp, onSnapshot, doc, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { FiUser } from 'react-icons/fi';
 
 export default function ChatRoom({ chatId }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [chatInfo, setChatInfo] = useState(null);
@@ -188,10 +191,19 @@ export default function ChatRoom({ chatId }) {
               onError={(e) => { e.target.src = '/images/default-avatar.svg'; }} 
             />
             <div className="flex-1">
-              <div className="text-blue-800 font-bold text-lg">
-                {otherUser.firstName 
-                  ? `${otherUser.firstName} ${otherUser.lastName || ''}`.trim() 
-                  : otherUser.displayName || otherUser.email || 'Chat'}
+              <div className="flex items-center gap-2">
+                <div className="text-blue-800 font-bold text-lg">
+                  {otherUser.firstName 
+                    ? `${otherUser.firstName} ${otherUser.lastName || ''}`.trim() 
+                    : otherUser.displayName || otherUser.email || 'Chat'}
+                </div>
+                <button
+                  onClick={() => navigate(`/tasker/${otherUser.uid}`)}
+                  className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  <FiUser className="mr-1" />
+                  View Profile
+                </button>
               </div>
               {otherUser.email && <div className="text-gray-600 text-sm">{otherUser.email}</div>}
             </div>
